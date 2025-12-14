@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书账号数据采集 & 分析助手</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --xhs-red: #ff2442;
+            --xhs-red-hover: #e01f3a;
+            --bg-color: #f4f6f8;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #333;
+            padding-bottom: 30px;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header Styling - Compact */
+        .app-header-bar {
+            background-color: #fff;
+            border-bottom: 1px solid #eaeaea;
+            padding: 10px 0;
+            margin-bottom: 25px;
+        }
+        .header-icon {
+            font-size: 1.5rem;
+            color: var(--xhs-red);
+        }
+        .header-title {
+            font-weight: 800;
+            color: #2c3e50;
+            font-size: 1rem;
+            margin-bottom: 0;
+            letter-spacing: -0.5px;
+        }
+        .header-subtitle {
+            color: #888;
+            font-size: 0.75rem;
+            font-weight: 400;
+        }
+        
+        .step-pill {
+            font-size: 0.75rem;
+            padding: 5px 12px;
+            border-radius: 50rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .step-pill.active {
+            background-color: #fff0f2;
+            color: var(--xhs-red);
+            border: 1px solid #ffccd5;
+        }
+        .step-pill.inactive {
+            background-color: #f8f9fa;
+            color: #999;
+            border: 1px solid #eee;
+        }
+
+        /* Card Styling - Compact */
+        .card-custom {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+            background: #fff;
+            margin-bottom: 15px;
+            overflow: hidden;
+            transition: transform 0.2s ease;
+            height: 100%;
+        }
+        
+        .card-header-custom {
+            background: #fff;
+            border-bottom: 1px solid #f8f9fa;
+            padding: 10px 15px;
+        }
+        
+        .card-header-title {
+            font-weight: 800;
+            font-size: 0.95rem;
+            margin: 0;
+            color: #2c3e50;
+        }
+
+        .card-body-custom {
+            padding: 15px;
+        }
+
+        /* Form Elements - Compact */
+        .form-control {
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            padding: 6px 10px;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+        .form-control:focus {
+            border-color: var(--xhs-red);
+            box-shadow: 0 0 0 3px rgba(255, 36, 66, 0.1);
+        }
+        
+        textarea.form-control {
+            resize: vertical;
+            min-height: 160px;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+        /* Buttons - Compact */
+        .btn {
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        .btn-xhs-primary {
+            background-color: var(--xhs-red);
+            border-color: var(--xhs-red);
+            color: white;
+        }
+        .btn-xhs-primary:hover, .btn-xhs-primary:active, .btn-xhs-primary:focus {
+            background-color: var(--xhs-red-hover);
+            border-color: var(--xhs-red-hover);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 36, 66, 0.2);
+        }
+        .btn-xhs-primary:disabled {
+            background-color: #ff8fa0;
+            border-color: #ff8fa0;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-xhs-secondary {
+            background-color: #f8f9fa;
+            color: #495057;
+            border: 1px solid #e9ecef;
+        }
+        .btn-xhs-secondary:hover {
+            background-color: #e9ecef;
+            color: #212529;
+            border-color: #dde2e6;
+        }
+
+        .btn-xhs-success {
+            background-color: #198754;
+            border-color: #198754;
+            color: white;
+        }
+        .btn-xhs-success:hover {
+            background-color: #157347;
+            box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-xhs-outline-primary {
+            color: #0d6efd;
+            border-color: #0d6efd;
+            background: transparent;
+        }
+        .btn-xhs-outline-primary:hover {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        /* Result Cards */
+        .note-card {
+            border: none;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            background: #fff;
+            height: 100%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        .note-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+        }
+        .cover-img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+        .note-card:hover .cover-img {
+            transform: scale(1.05);
+        }
+        .card-body-note {
+            padding: 12px;
+        }
+        .note-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            line-height: 1.4;
+            color: #333;
+        }
+        .note-desc {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            height: 2.4em;
+        }
+        .note-meta {
+            font-size: 0.75rem;
+            color: #999;
+            margin-bottom: 8px;
+        }
+        .stats-container {
+            display: flex;
+            gap: 6px;
+        }
+        .badge-custom {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 0.7rem;
+        }
+        .badge-like {
+            background-color: #fff0f2;
+            color: var(--xhs-red);
+        }
+        .badge-view {
+            background-color: #f0f7ff;
+            color: #0d6efd;
+        }
+
+        /* Utilities */
+        .section-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 6px;
+        }
+        .text-label-small {
+            font-size: 0.75rem;
+            color: #888;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        #loading-spinner, #spinner-auto {
+            width: 0.9rem;
+            height: 0.9rem;
+        }
+        
+        .empty-state {
+            padding: 40px 0;
+            text-align: center;
+            background: #fff;
+            border-radius: 16px;
+            color: #999;
+        }
+        .empty-state i {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: block;
+            color: #eee;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Header Bar -->
+    <div class="app-header-bar sticky-top">
+        <div class="container main-container d-flex flex-column flex-md-row justify-content-between align-items-center">
+            <!-- Left: Logo & Title -->
+            <div class="d-flex align-items-center mb-3 mb-md-0">
+                <i class="bi bi-robot header-icon me-3"></i>
+                <div class="d-flex flex-column">
+                    <h1 class="header-title">小红书账号数据采集 & 分析助手</h1>
+                    <div class="header-subtitle">
+                        三步：配置 Cookie <i class="bi bi-arrow-right mx-1" style="font-size: 0.7em;"></i> 
+                        抓取数据 <i class="bi bi-arrow-right mx-1" style="font-size: 0.7em;"></i> 
+                        分析分析报告
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right: Step Pills -->
+            <div class="d-flex gap-2">
+                <span class="step-pill active">Step 1 配置</span>
+                <span class="step-pill inactive">Step 2 采集</span>
+                <span class="step-pill inactive">Step 3 分析</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container main-container">
+        
+        <div class="row g-4 mb-4">
+            <!-- Step 1: Cookie Configuration -->
+            <div class="col-lg-6">
+                <div class="card card-custom h-100">
+                    <div class="card-header-custom">
+                        <h5 class="card-header-title">Step 1 · 配置 Cookie</h5>
+                    </div>
+                    <div class="card-body card-body-custom d-flex flex-column">
+                        <div class="mb-3 flex-grow-1">
+                            <!-- <label for="cookieInput" class="text-label-small">输入 COOKIE</label> -->
+                            <textarea class="form-control" id="cookieInput" placeholder="请在此粘贴你的小红书 Cookie...
+或者点击下方「一键自动获取」按钮"></textarea>
+                        </div>
+                        
+                        <div id="cookie-msg" class="alert d-none rounded-3 border-0 shadow-sm mb-3 py-2" style="font-size: 0.9rem;" role="alert"></div>
+
+                        <div class="d-flex gap-2">
+                            <button id="btn-auto-cookie" class="btn btn-xhs-primary flex-grow-1">
+                                <span id="spinner-auto" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <i class="bi bi-magic"></i> 一键自动获取
+                            </button>
+                             <button id="btn-save-cookie" class="btn btn-xhs-secondary flex-grow-1">
+                                手动保存 Cookie
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Data Collection -->
+            <div class="col-lg-6">
+                <div class="card card-custom h-100">
+                    <div class="card-header-custom">
+                        <h5 class="card-header-title">Step 2 · 数据采集</h5>
+                    </div>
+                    <div class="card-body card-body-custom">
+                        
+                        <div class="mb-4">
+                            <label class="section-label">采集我的笔记</label>
+                            <button id="btn-fetch" class="btn btn-xhs-primary w-100">
+                                <span id="loading-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <i class="bi bi-cloud-download"></i> 抓取我的笔记
+                            </button>
+                        </div>
+
+                        <hr class="text-muted opacity-25 my-4">
+
+                        <div class="mb-2">
+                            <label class="section-label">采集其他账号</label>
+                            <div class="row g-2">
+                                <div class="col-3">
+                                    <label for="crawlCountInput" class="text-label-small mb-1">抓取数量</label>
+                                    <input type="number" id="crawlCountInput" class="form-control" value="20">
+                                </div>
+                                <div class="col-9">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label for="userUrlInput" class="text-label-small mb-0">用户主页 URL</label>
+                                        <a href="#" class="text-decoration-none fw-bold" style="font-size: 0.8rem; color: #0d6efd;" data-bs-toggle="modal" data-bs-target="#linkHelpModal">
+                                            <i class="bi bi-question-circle"></i> 如何获取链接?
+                                        </a>
+                                    </div>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="userUrlInput" placeholder="https://www.xiaohongshu.com/user/...">
+                                        <button class="btn btn-xhs-primary" type="button" id="btn-fetch-user">
+                                            <i class="bi bi-search"></i> 抓取
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="error-msg" class="alert alert-danger mt-3 d-none rounded-3 border-0 shadow-sm py-2" style="font-size: 0.9rem;" role="alert"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Analysis (Visible always or only after results?) - Let's keep it visible as part of structure -->
+        <div class="card card-custom mb-4">
+            <div class="card-header-custom d-flex justify-content-between align-items-center">
+                <h5 class="card-header-title">Step 3 · 采集结果 & 分析</h5>
+                <div class="d-flex gap-2">
+                     <button id="btn-export-top10" class="btn btn-xhs-success btn-sm" disabled>
+                        <i class="bi bi-file-earmark-excel"></i> 导出前 10 条
+                    </button>
+                    <button id="btn-export-all" class="btn btn-xhs-primary btn-sm" disabled>
+                        <i class="bi bi-file-earmark-excel-fill"></i> 导出所有笔记
+                    </button>
+                    <button id="btn-report" class="btn btn-xhs-outline-primary btn-sm">
+                        <i class="bi bi-bar-chart-fill"></i> 生成分析报告
+                    </button>
+                </div>
+            </div>
+            <div class="card-body card-body-custom bg-light">
+                
+                <div id="results-area">
+                    <!-- Empty State -->
+                    <div id="empty-state" class="empty-state">
+                        <i class="bi bi-clipboard-data"></i>
+                        <p class="mb-2">分析报告功能即将上线</p>
+                        <small class="text-muted">请先在上方完成数据采集，随后可在此处查看 AI 深度分析报告</small>
+                    </div>
+
+                    <!-- Results Table (Hidden by default) -->
+                    <div id="notes-table-container" class="d-none">
+                        <p class="text-muted mb-3 small"><i class="bi bi-check-circle-fill text-success me-1"></i> 共采集到 <span id="note-count" class="fw-bold text-dark">0</span> 条笔记</p>
+                        <div class="table-responsive border rounded-3">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light">
+                        <tr class="text-muted small text-uppercase">
+                            <th scope="col" class="ps-3" style="min-width: 200px;">笔记标题</th>
+                            <th scope="col" style="min-width: 200px;">笔记内容</th>
+                            <th scope="col" style="min-width: 150px;">发布时间</th>
+                            <th scope="col" class="text-end">点赞</th>
+                            <th scope="col" class="text-end">收藏</th>
+                            <th scope="col" class="text-end">评论</th>
+                            <th scope="col" class="text-end">分享</th>
+                            <th scope="col" class="text-end pe-3" style="min-width: 100px;">操作</th>
+                        </tr>
+                    </thead>
+                                <tbody id="notes-tbody">
+                                    <!-- JS Injected Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Link Help Modal -->
+    <div class="modal fade" id="linkHelpModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" style="font-size: 1.1rem;">如何获取用户主页链接?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <ol class="ps-3 text-secondary" style="font-size: 0.95rem; line-height: 1.8;">
+                        <li>访问 <a href="https://www.xiaohongshu.com" target="_blank" class="text-primary text-decoration-none">小红书官网</a> 并进入目标博主主页。</li>
+                        <li>直接复制浏览器顶部的地址栏链接。</li>
+                    </ol>
+                    <div class="p-3 bg-light rounded-3 mb-4 border" style="font-size: 0.85rem; color: #198754; word-break: break-all;">
+                        https://www.xiaohongshu.com/user/profile/5a3...
+                    </div>
+                    <button type="button" class="btn btn-xhs-primary w-100 py-2" data-bs-dismiss="modal">知道了</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note Detail Modal -->
+    <div class="modal fade" id="noteDetailModal" tabindex="-1" aria-labelledby="noteDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-sm">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="noteDetailModalLabel">笔记详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-3" id="noteDetailModalBody">
+                    <!-- Dynamic Content -->
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light btn-sm w-100 rounded-pill" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Password Modal -->
+    <div class="modal fade" id="exportPasswordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">导出所有笔记</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p class="mb-3">请输入密码以导出所有数据：</p>
+                    <div class="mb-3">
+                        <input type="password" id="exportPasswordInput" class="form-control text-center" placeholder="请输入访问密码">
+                    </div>
+                    
+                    <div class="alert alert-info small text-start">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-wechat me-2 fs-5 text-success"></i>
+                            <span>扫码添加微信获取密码</span>
+                        </div>
+                        <div class="text-center bg-white p-2 rounded border">
+                            <!-- Placeholder for QR Code -->
+                            <img src="/static/wechat_qr.jpg" alt="微信二维码" class="img-fluid" style="max-width: 200px; height: auto;">
+                            <p class="text-muted small mt-2 mb-0">微信号：ZF1235813266</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-xhs-primary" id="btn-confirm-export">确认导出</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.1/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Global variables
+        let currentNotesData = [];
+
+        // Helper: Format Timestamp
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '未知';
+            try {
+                let date;
+                // If it's a number (timestamp)
+                if (typeof timestamp === 'number' || /^\d+$/.test(timestamp)) {
+                    // Check if it's seconds (10 digits) or milliseconds (13 digits)
+                    const ts = String(timestamp).length === 10 ? timestamp * 1000 : Number(timestamp);
+                    date = new Date(ts);
+                } else {
+                    date = new Date(timestamp);
+                }
+                
+                if (isNaN(date.getTime())) return String(timestamp);
+                
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return String(timestamp);
+            }
+        }
+
+        // Render Helper
+        function renderNotes(notes) {
+            currentNotesData = notes; // Store for modal access
+            const tbody = document.getElementById('notes-tbody');
+            const tableContainer = document.getElementById('notes-table-container');
+            const emptyState = document.getElementById('empty-state');
+            
+            tbody.innerHTML = '';
+
+            if (!notes || notes.length === 0) {
+                tableContainer.classList.add('d-none');
+                emptyState.classList.remove('d-none');
+                emptyState.innerHTML = '<i class="bi bi-exclamation-circle"></i><p>未找到笔记数据</p>';
+                return;
+            }
+
+            // Show table, hide empty state
+            emptyState.classList.add('d-none');
+            tableContainer.classList.remove('d-none');
+
+            notes.forEach((note, index) => {
+                const title = note.display_title || note.title || '无标题';
+                const likes = note.likes || note.liked_count || 0;
+                
+                // Date formatting
+                const rawDate = note.time || note.upload_time || note.publish_time;
+                const dateStr = formatTimestamp(rawDate);
+                
+                const noteId = note.note_id || note.id;
+                
+                const collected = note.collected_count || note.collect_count || 0;
+                const comments = note.comment_count || 0;
+                const shared = note.share_count || 0;
+                
+                // Content truncation
+                let content = note.desc || '';
+                const fullContent = content.replace(/"/g, '&quot;');
+                if (content.length > 50) {
+                    content = content.substring(0, 50) + '...';
+                } else if (!content) {
+                    content = '<span class="text-muted small">无内容</span>';
+                }
+                
+                const rowHtml = `
+                    <tr>
+                        <td class="ps-3">
+                            <a href="https://www.xiaohongshu.com/explore/${noteId}" target="_blank" class="text-decoration-none fw-bold text-dark text-truncate d-block" style="max-width: 240px;" title="${title}">${title}</a>
+                        </td>
+                        <td class="text-muted small text-truncate" style="max-width: 200px;" title="${fullContent}">${content}</td>
+                        <td class="text-muted small">${dateStr}</td>
+                        <td class="text-end">${likes}</td>
+                        <td class="text-end">${collected}</td>
+                        <td class="text-end">${comments}</td>
+                        <td class="text-end">${shared}</td>
+                        <td class="text-end pe-3">
+                            <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="showNoteDetails(${index})" style="font-size: 12px;">查看详情</button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += rowHtml;
+            });
+        }
+        
+        // Show Note Details Modal
+        function showNoteDetails(index) {
+            const note = currentNotesData[index];
+            if (!note) return;
+            
+            const modalTitle = document.getElementById('noteDetailModalLabel');
+            const modalBody = document.getElementById('noteDetailModalBody');
+            
+            modalTitle.textContent = note.display_title || note.title || '笔记详情';
+            
+            // Format Content
+            const content = note.desc || '无内容';
+            const dateStr = formatTimestamp(note.time || note.upload_time || note.publish_time);
+            
+            // Format Comments
+            let commentsHtml = '';
+            if (note.comments_list && note.comments_list.length > 0) {
+                commentsHtml = '<div class="list-group list-group-flush">';
+                note.comments_list.forEach(comment => {
+                    const cTime = formatTimestamp(comment.time);
+                    commentsHtml += `
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-bold small text-dark">${comment.user || '未知用户'}</span>
+                                <span class="text-muted small" style="font-size: 11px;">${cTime}</span>
+                            </div>
+                            <p class="mb-0 small text-secondary">${comment.content || ''}</p>
+                        </div>
+                    `;
+                });
+                commentsHtml += '</div>';
+            } else {
+                commentsHtml = '<p class="text-muted small text-center my-3">暂无评论数据</p>';
+            }
+
+            modalBody.innerHTML = `
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-2">发布时间</h6>
+                    <p class="text-muted small">${dateStr}</p>
+                    
+                    <h6 class="fw-bold mb-2">笔记内容</h6>
+                    <div class="p-3 bg-light rounded-3 small text-dark text-break" style="white-space: pre-wrap;">${content}</div>
+                </div>
+                
+                <div>
+                    <h6 class="fw-bold mb-3 d-flex justify-content-between align-items-center">
+                        <span>评论列表</span>
+                        <span class="badge bg-secondary rounded-pill">${note.comments_list ? note.comments_list.length : 0}</span>
+                    </h6>
+                    ${commentsHtml}
+                </div>
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('noteDetailModal'));
+            modal.show();
+        }
+
+        // --- Event Listeners ---
+
+        // 1. Save Cookie
+        document.getElementById('btn-save-cookie').addEventListener('click', async () => {
+            const cookieVal = document.getElementById('cookieInput').value.trim();
+            const msgBox = document.getElementById('cookie-msg');
+            
+            if (!cookieVal) {
+                msgBox.className = 'alert alert-warning rounded-3 border-0 shadow-sm mb-3 py-2';
+                msgBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>请输入 Cookie 内容';
+                msgBox.classList.remove('d-none');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/save_cookie', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ cookie: cookieVal })
+                });
+                const result = await response.json();
+                
+                msgBox.classList.remove('d-none');
+                if (result.success) {
+                    msgBox.className = 'alert alert-success rounded-3 border-0 shadow-sm mb-3 py-2';
+                    msgBox.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Cookie 保存成功';
+                } else {
+                    msgBox.className = 'alert alert-danger rounded-3 border-0 shadow-sm mb-3 py-2';
+                    msgBox.textContent = '保存失败: ' + result.msg;
+                }
+            } catch (err) {
+                msgBox.className = 'alert alert-danger rounded-3 border-0 shadow-sm mb-3 py-2';
+                msgBox.textContent = '请求错误: ' + err.message;
+                msgBox.classList.remove('d-none');
+            }
+        });
+
+        // 2. Auto Cookie
+        document.getElementById('btn-auto-cookie').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-auto-cookie');
+            const spinner = document.getElementById('spinner-auto');
+            const msgDiv = document.getElementById('cookie-msg');
+            const cookieInput = document.getElementById('cookieInput');
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            msgDiv.classList.add('d-none');
+            msgDiv.className = 'alert d-none rounded-3 border-0 shadow-sm mb-3 py-2'; 
+
+            try {
+                const response = await fetch('/api/auto_cookie', { method: 'POST' });
+                const result = await response.json();
+
+                msgDiv.classList.remove('d-none');
+                if (result.success) {
+                    msgDiv.classList.add('alert-success');
+                    msgDiv.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>' + result.msg;
+                    if (result.cookie) {
+                        cookieInput.value = result.cookie;
+                    }
+                } else {
+                    msgDiv.classList.add('alert-danger');
+                    msgDiv.textContent = result.msg + (result.logs ? ': ' + result.logs : '');
+                }
+            } catch (err) {
+                msgDiv.classList.remove('d-none');
+                msgDiv.classList.add('alert-danger');
+                msgDiv.textContent = '请求错误: ' + err.message;
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+            }
+        });
+
+        // 3. Fetch My Notes
+        document.getElementById('btn-fetch').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-fetch');
+            const spinner = document.getElementById('loading-spinner');
+            const errorMsg = document.getElementById('error-msg');
+            
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            errorMsg.classList.add('d-none');
+            
+            // Clear previous results
+            document.getElementById('notes-tbody').innerHTML = '';
+            document.getElementById('notes-table-container').classList.add('d-none');
+            document.getElementById('empty-state').classList.remove('d-none');
+
+            try {
+                const response = await fetch('/api/my_notes');
+                const result = await response.json();
+
+                if (result.success) {
+                    const notes = result.data;
+                    document.getElementById('note-count').textContent = notes.length;
+                    renderNotes(notes);
+                    document.getElementById('btn-export-top10').disabled = false;
+                    document.getElementById('btn-export-all').disabled = false;
+                } else {
+                    errorMsg.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>抓取失败: ' + result.msg;
+                    errorMsg.classList.remove('d-none');
+                    document.getElementById('btn-export-top10').disabled = true;
+                    document.getElementById('btn-export-all').disabled = true;
+                }
+            } catch (err) {
+                errorMsg.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>请求错误: ' + err.message;
+                errorMsg.classList.remove('d-none');
+                document.getElementById('btn-export-top10').disabled = true;
+                document.getElementById('btn-export-all').disabled = true;
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+            }
+        });
+
+        // 4. Fetch Other User
+        document.getElementById('btn-fetch-user').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-fetch-user');
+            const userUrl = document.getElementById('userUrlInput').value.trim();
+            const crawlCount = document.getElementById('crawlCountInput').value.trim();
+            const errorMsg = document.getElementById('error-msg');
+
+            if (!userUrl) {
+                alert('请输入用户主页 URL');
+                return;
+            }
+
+            btn.disabled = true;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            errorMsg.classList.add('d-none');
+            
+            // Clear previous results
+            document.getElementById('notes-tbody').innerHTML = '';
+            document.getElementById('notes-table-container').classList.add('d-none');
+            document.getElementById('empty-state').classList.remove('d-none');
+
+            try {
+                const response = await fetch('/api/user_notes', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ url: userUrl, crawl_count: crawlCount })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    const notes = result.data;
+                    document.getElementById('note-count').textContent = notes.length;
+                    renderNotes(notes);
+                    document.getElementById('btn-export-top10').disabled = false;
+                    document.getElementById('btn-export-all').disabled = false;
+                } else {
+                    errorMsg.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>' + result.msg;
+                    errorMsg.classList.remove('d-none');
+                    document.getElementById('btn-export-top10').disabled = true;
+                    document.getElementById('btn-export-all').disabled = true;
+                }
+            } catch (err) {
+                errorMsg.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>请求错误: ' + err.message;
+                errorMsg.classList.remove('d-none');
+                document.getElementById('btn-export-top10').disabled = true;
+                document.getElementById('btn-export-all').disabled = true;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        });
+
+        // 5. Export Logic
+        
+        // Helper: Generate Daily Password
+        async function getDailyPassword() {
+            const date = new Date();
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}${month}${day}`; // e.g., "20231207"
+            
+            // SHA-256 Hash
+            const msgBuffer = new TextEncoder().encode(dateStr);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            
+            // Return first 6 characters
+            return hashHex.substring(0, 6);
+        }
+
+        // Export Top 10
+        document.getElementById('btn-export-top10').addEventListener('click', () => {
+            window.location.href = '/api/export_excel?limit=10';
+        });
+
+        // Export All - Show Modal
+        document.getElementById('btn-export-all').addEventListener('click', async () => {
+            const modal = new bootstrap.Modal(document.getElementById('exportPasswordModal'));
+            modal.show();
+            
+            // For developer/user convenience (console log)
+            const pwd = await getDailyPassword();
+            console.log("今日导出密码 (Today's Password):", pwd);
+        });
+
+        // Confirm Export with Password
+        document.getElementById('btn-confirm-export').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-confirm-export');
+            const pwdInput = document.getElementById('exportPasswordInput');
+            const pwd = pwdInput.value.trim();
+            
+            btn.disabled = true;
+            
+            try {
+                const correctPwd = await getDailyPassword();
+                
+                if (pwd === correctPwd) {
+                    // Correct Password
+                    // Hide modal
+                    const modalEl = document.getElementById('exportPasswordModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    modal.hide();
+                    
+                    // Trigger download
+                    window.location.href = '/api/export_excel';
+                    
+                    // Clear password for security/next time
+                    pwdInput.value = '';
+                } else {
+                    // Wrong Password
+                    alert('密码错误，请扫描二维码添加微信获取密码！');
+                    pwdInput.value = '';
+                    pwdInput.focus();
+                }
+            } catch (e) {
+                console.error("Password verification error:", e);
+                alert("验证出错，请重试");
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        // 6. Generate Report (Placeholder)
+        document.getElementById('btn-report').addEventListener('click', () => {
+            alert('功能开发中，敬请期待！\nAI 分析报告将提供：\n1. 爆款笔记特征分析\n2. 低效内容诊断及建议\n3. 高潜力选题方向推荐');
+        });
+    </script>
+</body>
+</html>
