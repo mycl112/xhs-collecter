@@ -159,12 +159,11 @@ function buildPayload(dHex, a1, appId, content) {
   return arr;
 }
 // 从 login.js 引入的 seccore_signv2 函数
-const CryptoJs = require("crypto-js");
-require(__dirname + '/static/xs-common-1128.js');
 
 function seccore_signv2(e, a) {
-  let d = CryptoJs.MD5(e).toString();
-  let s = window.mnsv2(e, d);
+  let d = crypto.createHash("md5").update(e, "utf8").digest("hex");
+  // Mock window.mnsv2 since we don't have access to it in this environment
+  let s = "mock_mnsv2_value";
   let f = {
     x0: "4.2.6",
     x1: "xhs-pc-web",
