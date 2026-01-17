@@ -1058,6 +1058,9 @@
                     document.getElementById('btn-export-top10').disabled = false;
                     document.getElementById('btn-export-all').disabled = false;
                     
+                    // 保存笔记数据到全局变量，用于导出
+                    lastFetchedNotes = notes;
+                    
                     // Show success message
                     errorMsg.className = 'alert alert-success rounded-3 border-0 shadow-sm mb-3 py-2';
                     errorMsg.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>成功采集 ${notes.length} 条笔记`;
@@ -1135,6 +1138,46 @@
         
         // Helper: Generate Daily Password
         // Simple password generation that works in all environments
+        
+        // 存储最后抓取的笔记数据，用于导出
+        let lastFetchedNotes = [];
+        
+        // 导出笔记的辅助函数
+        async function exportNotes(notes, type) {
+            try {
+                const url = type === 'top10' ? '/api/export_excel?limit=10' : '/api/export_excel';
+                
+                // 使用POST请求发送笔记数据
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify({ notes: notes })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.msg || '导出失败');
+                }
+                
+                // 创建下载链接
+                const blob = await response.blob();
+                const urlObj = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = urlObj;
+                a.download = `xhs_notes_export_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(urlObj);
+            } catch (error) {
+                console.error('导出失败:', error);
+                alert(`导出失败: ${error.message}`);
+            }
+        }
+        
         function getDailyPassword() {
             const date = new Date();
             const year = date.getFullYear();
@@ -1156,8 +1199,12 @@
         }
 
         // Export Top 10
-        document.getElementById('btn-export-top10').addEventListener('click', () => {
-            window.location.href = '/api/export_excel?limit=10';
+        document.getElementById('btn-export-top10').addEventListener('click', async () => {
+            if (lastFetchedNotes.length === 0) {
+                alert('没有可导出的数据，请先采集笔记！');
+                return;
+            }
+            await exportNotes(lastFetchedNotes, 'top10');
         });
 
         // Export All - Show Modal
@@ -1198,8 +1245,8 @@
                     const modal = bootstrap.Modal.getInstance(modalEl);
                     modal.hide();
                     
-                    // Trigger download
-                    window.location.href = '/api/export_excel';
+                    // Trigger download with all notes
+                    await exportNotes(lastFetchedNotes, 'all');
                     
                     // Clear password for security/next time
                     pwdInput.value = '';

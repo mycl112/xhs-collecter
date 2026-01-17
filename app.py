@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify, request, send_file, session
 from flask_wtf.csrf import CSRFProtect
+from flask_session import Session
 from wtforms import StringField, IntegerField, validators
 from apis.xhs_creator_apis import XHS_Creator_Apis
 from apis.xhs_pc_apis import XHS_Apis
@@ -32,9 +33,13 @@ app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # CSRF token expiration time
 # Session configurations
 app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60  # Session expires after 1 hour
 app.config['SESSION_PERMANENT'] = True  # Make sessions permanent
+app.config['SESSION_TYPE'] = 'filesystem'  # Use file system for session storage
+app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(__file__), 'sessions')
+app.config['SESSION_FILE_THRESHOLD'] = 500  # Maximum number of sessions to store
 
-# Initialize CSRF protection
+# Initialize extensions
 csrf = CSRFProtect(app)
+Session(app)
 
 # Disable CSRF protection for API endpoints since we're using session-based authentication
 # and the frontend is sending the CSRF token in the header
@@ -225,22 +230,33 @@ def get_my_notes():
         logger.error(f"API 错误: {e}")
         return jsonify({'success': False, 'msg': f'服务器内部错误: {str(e)}'})
 
-@app.route('/api/export_excel')
+@app.route('/api/export_excel', methods=['GET', 'POST'])
 @csrf.exempt
 def export_excel():
     try:
-        # Get notes from session
-        last_crawled_notes = session.get('last_crawled_notes', [])
-        if not last_crawled_notes:
-             logger.error("导出失败: 没有可导出的数据")
-             return jsonify({'success': False, 'msg': '没有可导出的数据'}), 400
+        notes_to_export = []
+        
+        # Check if data is sent from frontend via POST
+        if request.method == 'POST':
+            request_data = request.get_json()
+            if request_data and 'notes' in request_data:
+                notes_to_export = request_data['notes']
+                logger.info(f"从前端获取到 {len(notes_to_export)} 条笔记用于导出")
+        
+        # If no data from frontend, use session data
+        if not notes_to_export:
+            last_crawled_notes = session.get('last_crawled_notes', [])
+            if not last_crawled_notes:
+                logger.error("导出失败: 没有可导出的数据")
+                return jsonify({'success': False, 'msg': '没有可导出的数据'}), 400
+            notes_to_export = last_crawled_notes
+            logger.info(f"从会话获取到 {len(notes_to_export)} 条笔记用于导出")
         
         # Get limit from query parameters
         limit = request.args.get('limit', type=int)
         
-        notes_to_export = last_crawled_notes
         if limit and limit > 0:
-            notes_to_export = last_crawled_notes[:limit]
+            notes_to_export = notes_to_export[:limit]
         
         logger.info(f"开始导出Excel: 共 {len(notes_to_export)} 条笔记")
 
