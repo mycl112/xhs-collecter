@@ -3,7 +3,16 @@ import os
 import sys
 import json
 import platform
+from loguru import logger
 from playwright.sync_api import sync_playwright
+
+# 配置日志
+logger.remove()
+logger.add(
+    sys.stdout,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    level="INFO"
+)
 
 # 全局变量，用于标记是否检测到登录成功
 LOGIN_SUCCESS = False
@@ -44,18 +53,19 @@ def handle_response(response):
                 
             # 严格过滤游客
             if is_guest is True:
-                # print(f"⚠️ 检测到游客身份信号，忽略...")
+                logger.debug(f"⚠️ 检测到游客身份信号，忽略...")
                 return
                 
             if not nickname or nickname == "Unknown" or nickname == "游客" or "未登录" in nickname:
-                # print(f"⚠️ 检测到无效昵称 ({nickname})，忽略...")
+                logger.debug(f"⚠️ 检测到无效昵称 ({nickname})，忽略...")
                 return
 
             LOGIN_SUCCESS = True
             USER_NICKNAME = nickname
-            print(f"🎉 [监听模式] 捕获到登录成功信号！用户: {USER_NICKNAME}")
-        except Exception:
+            logger.success(f"[监听模式] 捕获到登录成功信号！用户: {USER_NICKNAME}")
+        except Exception as e:
             # 忽略解析错误（可能是响应体不是 JSON 等）
+            logger.debug(f"⚠️ 解析响应失败: {e}")
             pass
 
 def check_login_status(page):
@@ -92,7 +102,7 @@ def check_login_status(page):
     return False, None
 
 def main():
-    print("🚀 正在启动浏览器 (监听模式)...")
+    logger.info("🚀 正在启动浏览器 (监听模式)...")
     
     try:
         with sync_playwright() as p:
@@ -109,15 +119,24 @@ def main():
                 if is_linux:
                     launch_args = ["--no-sandbox", "--disable-dev-shm-usage"]
                 
-                print(f"🖥️ 检测到系统: {system_name}, 启动模式: {'Headless (无头)' if headless_mode else 'Headed (有界面)'}")
+                logger.info(f"🖥️ 检测到系统: {system_name}, 启动模式: {'Headless (无头)' if headless_mode else 'Headed (有界面)'}")
 
                 browser = p.chromium.launch(
                     headless=headless_mode,
                     args=launch_args
                 )
             except Exception as e:
-                print(f"❌ 启动浏览器失败: {e}")
-                print("请尝试运行: playwright install chromium")
+                logger.error(f"❌ 启动浏览器失败: {e}")
+                if "executable doesn't exist" in str(e) or "No executable found" in str(e):
+                    logger.error("📦 检测到Chromium浏览器未安装，请运行以下命令安装:")
+                    logger.error("   playwright install chromium")
+                elif "playwright" in str(e).lower():
+                    logger.error("📦 检测到Playwright未安装，请运行以下命令安装:")
+                    logger.error("   pip install playwright")
+                    logger.error("   playwright install chromium")
+                else:
+                    logger.error("🔧 请尝试运行以下命令修复:")
+                    logger.error("   playwright install chromium")
                 return
 
             context = browser.new_context(
@@ -130,7 +149,7 @@ def main():
             # 注册响应监听器 (保留被动监听作为双重保障)
             page.on("response", handle_response)
             
-            print("🌐 正在打开小红书首页...")
+            logger.info("🌐 正在打开小红书首页...")
             try:
                 page.goto("https://www.xiaohongshu.com")
                 # Wait for QR code to render
@@ -139,18 +158,18 @@ def main():
                 if headless_mode:
                     # Take screenshot for headless mode
                     page.screenshot(path="login_qrcode.png")
-                    print("📸 已保存登录页面截图至: login_qrcode.png")
-                    print("💡 当前为无头模式，请下载该截图并扫描二维码登录")
+                    logger.info("📸 已保存登录页面截图至: login_qrcode.png")
+                    logger.info("💡 当前为无头模式，请下载该截图并扫描二维码登录")
             except Exception as e:
-                print(f"❌ 打开页面失败: {e}")
+                logger.error(f"❌ 打开页面失败: {e}")
                 browser.close()
                 return
             
-            print("-" * 50)
-            print("👉 请在弹出的浏览器窗口中完成登录（推荐使用手机App扫码）")
-            print("👀 脚本正在监听网络请求，等待登录成功信号...")
-            print("⏳ 登录成功后，脚本会自动捕获 Cookie 并关闭。")
-            print("-" * 50)
+            logger.info("-" * 50)
+            logger.info("👉 请在弹出的浏览器窗口中完成登录（推荐使用手机App扫码）")
+            logger.info("👀 脚本正在监听网络请求，等待登录成功信号...")
+            logger.info("⏳ 登录成功后，脚本会自动捕获 Cookie 并关闭。")
+            logger.info("-" * 50)
             
             max_retries = 300 # 10分钟超时 (2s interval)
             retries = 0
@@ -160,7 +179,7 @@ def main():
             while retries < max_retries:
                 # 方式1：检查被动监听的标志位
                 if LOGIN_SUCCESS:
-                    print(f"\n✅ [监听模式] 检测到登录成功！用户: {USER_NICKNAME}")
+                    logger.success(f"[监听模式] 检测到登录成功！用户: {USER_NICKNAME}")
                 
                 # 方式2：如果被动监听没触发，尝试主动轮询 (Active Polling)
                 # 只有当 cookies 中包含 web_session 时才值得去轮询，减少不必要的请求
@@ -172,11 +191,11 @@ def main():
                         if is_logged_in:
                             LOGIN_SUCCESS = True
                             USER_NICKNAME = nickname
-                            print(f"\n✅ [主动轮询] 检测到登录成功！用户: {USER_NICKNAME}")
+                            logger.success(f"[主动轮询] 检测到登录成功！用户: {USER_NICKNAME}")
 
                 # 如果任意一种方式检测到成功
                 if LOGIN_SUCCESS:
-                    print("正在提取 Cookie...")
+                    logger.info("正在提取 Cookie...")
                     
                     # 稍微等待一下，确保所有 Cookie 都写入完毕
                     time.sleep(3)
@@ -190,33 +209,32 @@ def main():
                     # 再次检查关键字段
                     if "web_session" in cookie_str:
                         print(f"COOKIE_RESULT:{cookie_str}")
-                        print(f"🎉 Cookie 获取成功！(长度: {len(cookie_str)})")
-                        print("👋 浏览器将在 3 秒后关闭...")
+                        logger.success(f"Cookie 获取成功！(长度: {len(cookie_str)})")
+                        logger.info("👋 浏览器将在 3 秒后关闭...")
                         time.sleep(3)
                         break
                     else:
-                        print("⚠️ 登录成功但 Cookie 似乎不完整 (缺少 web_session)，可能是误判或延迟，继续等待...")
+                        logger.warning("⚠️ 登录成功但 Cookie 似乎不完整 (缺少 web_session)，可能是误判或延迟，继续等待...")
                         # 如果这里失败了，说明虽然 API 返回成功，但 Cookie 还没写好
                         # 我们不重置 LOGIN_SUCCESS，而是继续循环等待 Cookie 出现
                 
                 if retries % 5 == 0:
-                    print(f"⏳ 等待登录中... ({retries*2}s)")
+                    logger.info(f"⏳ 等待登录中... ({retries*2}s)")
                     
                 time.sleep(2)
                 retries += 1
                 
             if retries >= max_retries:
-                print("\n❌ 登录超时，请重试。")
+                logger.error("❌ 登录超时，请重试。")
                 
             try:
                 browser.close()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"关闭浏览器时发生错误: {e}")
                 
     except Exception as e:
-        print(f"❌ 脚本发生未捕获异常: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"❌ 脚本发生未捕获异常: {e}")
+        logger.exception("详细错误信息:")
 
 if __name__ == "__main__":
     main()

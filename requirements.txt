@@ -4,5 +4,8 @@ loguru
 python-dotenv
 retry
 openpyxl
-playwright
+playwright==1.40.0
 gunicorn
+flask
+flask-wtf
+flask-session

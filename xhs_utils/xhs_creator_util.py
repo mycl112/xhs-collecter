@@ -1,11 +1,21 @@
 import json
-
 import execjs
+import os
 
-try:
-    js = execjs.compile(open(r'../static/xhs_creator_xs.js', 'r', encoding='utf-8').read())
-except:
-    js = execjs.compile(open(r'static/xhs_creator_xs.js', 'r', encoding='utf-8').read())
+# 获取当前文件的绝对路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# 构建项目根目录路径
+root_dir = os.path.dirname(current_dir)
+
+# 构建JS文件的绝对路径
+creator_js_path = os.path.join(root_dir, 'static', 'xhs_creator_xs.js')
+
+# 检查文件是否存在
+if not os.path.exists(creator_js_path):
+    raise FileNotFoundError(f"JS文件不存在: {creator_js_path}")
+
+# 加载JS文件
+js = execjs.compile(open(creator_js_path, 'r', encoding='utf-8').read())
 
 
 def generate_xs(a1, api, data=''):

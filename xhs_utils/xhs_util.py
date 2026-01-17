@@ -2,17 +2,30 @@ import json
 import math
 import random
 import execjs
+import os
+from loguru import logger
 from xhs_utils.cookie_util import trans_cookies
 
-try:
-    js = execjs.compile(open(r'../static/xhs_xs_xsc_56.js', 'r', encoding='utf-8').read())
-except:
-    js = execjs.compile(open(r'static/xhs_xs_xsc_56.js', 'r', encoding='utf-8').read())
+# 获取当前文件的绝对路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# 构建项目根目录路径
+root_dir = os.path.dirname(current_dir)
 
-try:
-    xray_js = execjs.compile(open(r'../static/xhs_xray.js', 'r', encoding='utf-8').read())
-except:
-    xray_js = execjs.compile(open(r'static/xhs_xray.js', 'r', encoding='utf-8').read())
+from xhs_utils.config import config
+
+# 构建JS文件的绝对路径
+xs_js_path = os.path.join(config.STATIC_DIR, 'xhs_xs_xsc_56.js')
+xray_js_path = os.path.join(config.STATIC_DIR, 'xhs_xray.js')
+
+# 检查文件是否存在
+if not os.path.exists(xs_js_path):
+    raise FileNotFoundError(f"JS文件不存在: {xs_js_path}")
+if not os.path.exists(xray_js_path):
+    raise FileNotFoundError(f"JS文件不存在: {xray_js_path}")
+
+# 加载JS文件
+js = execjs.compile(open(xs_js_path, 'r', encoding='utf-8').read())
+xray_js = execjs.compile(open(xray_js_path, 'r', encoding='utf-8').read())
 
 def generate_x_b3_traceid(len=16):
     x_b3_traceid = ""
@@ -93,6 +106,9 @@ def generate_request_params(cookies_str, api, data='', method='POST'):
     headers, data = generate_headers(a1, api, data, method)
     return headers, cookies, data
 
+import time
+import random
+
 def splice_str(api, params):
     url = api + '?'
     for key, value in params.items():
@@ -100,4 +116,16 @@ def splice_str(api, params):
             value = ''
         url += key + '=' + value + '&'
     return url[:-1]
+
+def api_delay(min_delay=None, max_delay=None):
+    """
+    统一的API请求延迟函数，避免请求频率过高导致IP被封
+    :param min_delay: 最小延迟时间（秒），如果为None则使用配置文件中的值
+    :param max_delay: 最大延迟时间（秒），如果为None则使用配置文件中的值
+    """
+    min_delay = min_delay or config.API_DELAY_MIN
+    max_delay = max_delay or config.API_DELAY_MAX
+    delay = random.uniform(min_delay, max_delay)
+    logger.debug(f"API请求延迟: {delay:.2f}秒")
+    time.sleep(delay)
 

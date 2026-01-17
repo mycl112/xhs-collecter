@@ -5,7 +5,7 @@ import urllib
 import requests
 import time
 import random
-from xhs_utils.xhs_util import splice_str, generate_request_params, generate_x_b3_traceid, get_common_headers
+from xhs_utils.xhs_util import splice_str, generate_request_params, generate_x_b3_traceid, get_common_headers, api_delay
 from loguru import logger
 
 """
@@ -25,6 +25,7 @@ class XHS_Apis():
         try:
             api = "/api/sns/web/v1/homefeed/category"
             headers, cookies, data = generate_request_params(cookies_str, api, '', 'GET')
+            api_delay()
             response = requests.get(self.base_url + api, headers=headers, cookies=cookies, proxies=proxies)
             res_json = response.json()
             success, msg = res_json["success"], res_json["msg"]
@@ -218,7 +219,7 @@ class XHS_Apis():
             while True:
                 # Anti-blocking: Random delay 2-5s
                 delay = random.uniform(2, 5)
-                print(f"Sleeping for {delay:.2f}s to simulate human behavior...")
+                logger.debug(f"Sleeping for {delay:.2f}s to simulate human behavior...")
                 time.sleep(delay)
 
                 success, msg, res_json = self.get_user_note_info(user_id, cursor, cookies_str, xsec_token, xsec_source, proxies)
@@ -407,8 +408,8 @@ class XHS_Apis():
                 "extra": {
                     "need_body_topic": "1"
                 },
-                "xsec_source": kvDist['xsec_source'] if 'xsec_source' in kvDist else "pc_search",
-                "xsec_token": kvDist['xsec_token']
+                "xsec_source": kvDist.get('xsec_source', "pc_search"),
+                "xsec_token": kvDist.get('xsec_token', "")
             }
             headers, cookies, data = generate_request_params(cookies_str, api, data, 'POST')
             response = requests.post(self.base_url + api, headers=headers, data=data, cookies=cookies, proxies=proxies)
@@ -771,12 +772,17 @@ class XHS_Apis():
             urlParse = urllib.parse.urlparse(url)
             note_id = urlParse.path.split("/")[-1]
             kvs = urlParse.query.split('&')
-            kvDist = {kv.split('=')[0]: kv.split('=')[1] for kv in kvs}
-            success, msg, out_comment_list = self.get_note_all_out_comment(note_id, kvDist['xsec_token'], cookies_str, proxies)
+            kvDist = {}
+            for kv in kvs:
+                if '=' in kv:
+                    k, v = kv.split('=', 1)  # 限制只分割一次，避免值中包含=号导致错误
+                    kvDist[k] = v
+            success, msg, out_comment_list = self.get_note_all_out_comment(note_id, kvDist.get('xsec_token', ''), cookies_str, proxies)
             if not success:
                 raise Exception(msg)
+            xsec_token = kvDist.get('xsec_token', '')
             for comment in out_comment_list:
-                success, msg, new_comment = self.get_note_all_inner_comment(comment, kvDist['xsec_token'], cookies_str, proxies)
+                success, msg, new_comment = self.get_note_all_inner_comment(comment, xsec_token, cookies_str, proxies)
                 if not success:
                     raise Exception(msg)
         except Exception as e:

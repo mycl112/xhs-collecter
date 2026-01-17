@@ -86,11 +86,18 @@ def handle_note_info(data):
     image_list = []
     for image in image_list_temp:
         try:
-            image_list.append(image['info_list'][1]['url'])
-            # success, msg, img_url = XHS_Apis.get_note_no_water_img(image['info_list'][1]['url'])
-            # image_list.append(img_url)
-        except:
-            pass
+            # 优先尝试info_list[1]['url']，如果失败则尝试其他索引
+            if 'info_list' in image and isinstance(image['info_list'], list):
+                # 尝试不同的info_list索引，从1开始，然后是0
+                for idx in [1, 0]:
+                    if len(image['info_list']) > idx and image['info_list'][idx].get('url'):
+                        image_list.append(image['info_list'][idx]['url'])
+                        break
+            # 如果没有info_list，直接尝试image['url']
+            elif image.get('url'):
+                image_list.append(image['url'])
+        except Exception as e:
+            logger.debug(f"提取图片URL失败: {e}")
     if note_type == '视频':
         video_cover = image_list[0]
         video_addr = 'https://sns-video-bd.xhscdn.com/' + data['note_card']['video']['consumer']['origin_video_key']
@@ -193,56 +200,129 @@ def save_to_xlsx(datas, file_path, type='note'):
 
 
 def save_creator_data_to_xlsx(datas, file_path):
+    """
+    将创作者数据保存到Excel文件
+    :param datas: 数据列表
+    :param file_path: 文件路径
+    """
     wb = openpyxl.Workbook()
     ws = wb.active
-    headers = ['笔记ID', '标题', '发布时间', '笔记类型', '点赞数', '收藏数', '评论数', '分享数', '阅读数', '笔记链接', '封面链接', '笔记内容', '评论内容']
+    headers = ['笔记ID', '标题', '发布时间', '笔记类型', '点赞数', '收藏数', '评论数', '分享数', '阅读数', '笔记链接', '封面链接', '图片URL列表', '笔记内容', '评论内容']
     ws.append(headers)
     
     for data in datas:
+        # 确保data是字典类型
+        if not isinstance(data, dict):
+            logger.warning(f"跳过无效数据类型: {type(data)}")
+            continue
+        
         note_id = data.get('note_id', data.get('id', ''))
         title = data.get('display_title', data.get('title', ''))
         upload_time = data.get('time', data.get('upload_time', data.get('display_time', '')))
+        
+        # 处理时间戳
         if isinstance(upload_time, (int, float)):
             upload_time = timestamp_to_str(upload_time)
+        elif not isinstance(upload_time, str):
+            upload_time = str(upload_time)
+        
         note_type = data.get('type', 'normal')
-        likes = data.get('likes', data.get('liked_count', 0))
-        collects = data.get('collected_count', 0)
-        comments = data.get('comments_count', data.get('comment_count', 0))
-        shares = data.get('shared_count', data.get('share_count', 0))
-        views = data.get('view_count', 0)
+        
+        # 处理数字类型，确保是整数
+        def safe_int(value, default=0):
+            """安全转换为整数"""
+            if isinstance(value, (int, float)):
+                return int(value)
+            elif isinstance(value, str):
+                try:
+                    return int(float(value))
+                except:
+                    return default
+            return default
+        
+        likes = safe_int(data.get('likes', data.get('liked_count', 0)))
+        collects = safe_int(data.get('collected_count', 0))
+        comments = safe_int(data.get('comments_count', data.get('comment_count', 0)))
+        shares = safe_int(data.get('shared_count', data.get('share_count', 0)))
+        views = safe_int(data.get('view_count', 0))
+        
+        # 构建笔记链接
         note_url = f"https://www.xiaohongshu.com/explore/{note_id}" if note_id else ""
+        
+        # 获取封面链接
         cover = ""
         if 'cover' in data and isinstance(data['cover'], dict):
             cover = data['cover'].get('url', '')
-        elif 'images_list' in data and data['images_list']:
-             cover = data['images_list'][0].get('url', '')
+        elif 'images_list' in data and isinstance(data['images_list'], list) and data['images_list']:
+            img_item = data['images_list'][0]
+            if isinstance(img_item, dict):
+                cover = img_item.get('url', '')
         elif 'video' in data and isinstance(data['video'], dict):
-             cover = data['video'].get('cover_url', '')
-             
+            cover = data['video'].get('cover_url', '')
+        
+        # 处理描述和评论
         desc = data.get('desc', '')
+        if not isinstance(desc, str):
+            desc = str(desc)
         
         comments_str = ""
-        if 'comments_list' in data:
+        if 'comments_list' in data and isinstance(data['comments_list'], list):
             c_list = []
             for c in data['comments_list']:
+                if not isinstance(c, dict):
+                    continue
                 user = c.get('user', 'Unknown')
+                if not isinstance(user, str):
+                    user = 'Unknown'
                 content = c.get('content', '')
+                if not isinstance(content, str):
+                    content = ''
                 c_list.append(f"{user}: {content}")
             comments_str = "\n".join(c_list)
 
+        # 处理图片URL列表
+        image_urls = ""
+        if 'image_urls' in data and isinstance(data['image_urls'], list):
+            image_urls = "\n".join(data['image_urls'])
+        elif 'images_list' in data and isinstance(data['images_list'], list):
+            # 兼容旧的images_list格式
+            img_urls = []
+            for img_item in data['images_list']:
+                if isinstance(img_item, dict):
+                    url = img_item.get('url', '')
+                    if url:
+                        img_urls.append(url)
+            image_urls = "\n".join(img_urls)
+        elif 'image_list' in data and isinstance(data['image_list'], list):
+            # 兼容handle_note_info返回的image_list格式
+            image_urls = "\n".join(data['image_list'])
+        
+        # 构建行数据，确保所有字段都是字符串类型，避免Excel导入错误
         row = [
             str(note_id), 
             norm_text(str(title)), 
             str(upload_time), 
             str(note_type),
             likes, collects, comments, shares, views,
-            note_url, cover,
+            str(note_url), str(cover),
+            norm_text(str(image_urls)),
             norm_text(str(desc)),
             norm_text(str(comments_str))
         ]
+        
+        # 确保行数据长度与标题一致
+        if len(row) != len(headers):
+            logger.warning(f"行数据长度与标题不一致: {len(row)} != {len(headers)}")
+            continue
+        
         ws.append(row)
-    wb.save(file_path)
-    logger.info(f'Creator data saved to {file_path}')
+    
+    try:
+        wb.save(file_path)
+        logger.info(f'Creator data saved to {file_path}')
+    except Exception as e:
+        logger.error(f'保存Excel文件失败: {e}')
+        raise
 
 def download_media(path, name, url, type):
     if type == 'image':
